@@ -1,10 +1,10 @@
 === Plugin Name ===
 Contributors: Christian Jensen
-Donate link: TBA
-Tags: Geotag, Geographical, Position, OpenStreetMap, Map
+Donate link: http://chrsoft.net/?page_id=18
+Tags: Geotag, Geographical, Position, OpenStreetMap, Map, Geosm, Geosm2
 Requires at least: 2.8
 Tested up to: 2.9.2
-Stable tag: 0.8.1
+Stable tag: 0.8.2
 
 GeOSM2 is a widget that adds a minimap to your sidebar(s) displaying the location where you posted the entry.
 
@@ -38,6 +38,10 @@ This section describes how to install the plugin and get it working.
 3. The widget setup panel
 
 == Changelog ==
+
+= 0.8.2 =
+Added support for localization and updated some links
+
 
 = 0.8.1 =
 Updating the versions in all files.

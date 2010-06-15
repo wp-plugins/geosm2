@@ -1,11 +1,11 @@
 <?PHP
 /*
 Plugin name: 	GeOSM2
-Plugin URI:		http://...
+Plugin URI:		http://chrsoft.net/?page_id=6
 Description:	Uses the already set parameters geo_latitude and geo_longitude to put a marker on a embedded Open Street Map if public is set to 1. A perfect match with mobile blogging devices like iPhone
-Version:		0.8.1
+Version:		0.8.2
 Author:			Christian Jensen
-Author URI:		http://
+Author URI:		http://chrsoft.net/
 License:		GPL2
 */
 
@@ -81,14 +81,14 @@ class GeOSM2 extends WP_Widget {
 
 	function form($instance) 
 	{
-        ?>
+        load_plugin_textdomain('geosm2',false, dirname(plugin_basename( __FILE__)).'/language');?>
             <p>
-	            <label for="<?php echo $this->get_field_id('title'); ?>"><?php _e('Title:'); ?>
+	            <label for="<?php echo $this->get_field_id('title'); ?>"><?php _e('Title:','geosm2'); ?>
 	            <input class="widefat" id="<?php echo $this->get_field_id('title'); ?>" name="<?php echo $this->get_field_name('title'); ?>"
 	            		type="text" value="<?php echo esc_attr($instance['title']); ?>" /></label>
             </p>
 			<p>
-				<label for="<?php echo $this->get_field_id( 'maptype' ); ?>">Map Type:
+				<label for="<?php echo $this->get_field_id( 'maptype' ); ?>"<?php _e('Map Type:','geosm2'); ?>
 				<select class="widefat" id="<?php echo $this->get_field_id( 'maptype' ); ?>" name="<?php echo $this->get_field_name( 'maptype' ); ?>">
 					<option <?php if ( 'cyclemap' == $instance['maptype'] ) echo 'selected="selected"'; ?>>cyclemap</option>
 					<option <?php if ( 'mapnik' == $instance['maptype'] ) echo 'selected="selected"'; ?>>mapnik</option>
@@ -96,13 +96,13 @@ class GeOSM2 extends WP_Widget {
 				</select></label>
 			</p>
 			<p>
-				<label for="<?php echo $this->get_field_id('width'); ?>">Width:
+				<label for="<?php echo $this->get_field_id('width'); ?>"><?php _e('Width','geosm2'); ?>:
 				<input id="<?php echo $this->get_field_id('width'); ?>" name="<?php echo $this->get_field_name('width'); ?>"
 					type="text" value="<?php echo esc_attr($instance['width']); ?>" />
 				</label>
 			</p>
 			<p>
-				<label for="<?php echo $this->get_field_id('height'); ?>">Height:
+				<label for="<?php echo $this->get_field_id('height'); ?>"><?php _e('Height','geosm2'); ?>:
 				<input id="<?php echo $this->get_field_id('height'); ?>" name="<?php echo $this->get_field_name('height'); ?>"
 					type="text" value="<?php echo esc_attr($instance['height']); ?>" />
 				</label>
@@ -110,7 +110,7 @@ class GeOSM2 extends WP_Widget {
 			<p>
 				<label for="<?php echo $this->get_field_id( 'needle' ); ?>">
 				<input class="checkbox" type="checkbox" <?php if ( 'on' == $instance['needle'] ) echo 'checked'; ?> id="<?php echo $this->get_field_id( 'needle' ); ?>" name="<?php echo $this->get_field_name( 'needle' ); ?>"/>
-				Show the needle?</label>
+				<?php _e('Show the needle?','geosm2'); ?></label>
 			</p>
 
         <?php 
