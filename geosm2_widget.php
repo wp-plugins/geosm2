@@ -3,7 +3,7 @@
 Plugin name: 	GeOSM2
 Plugin URI:		http://...
 Description:	Uses the already set parameters geo_latitude and geo_longitude to put a marker on a embedded Open Street Map if public is set to 1. A perfect match with mobile blogging devices like iPhone
-Version:		0.1 (alfa)
+Version:		0.8.1
 Author:			Christian Jensen
 Author URI:		http://
 License:		GPL2
