@@ -4,7 +4,7 @@ Donate link: TBA
 Tags: Geotag, Geographical, Position, OpenStreetMap, Map
 Requires at least: 2.8
 Tested up to: 2.9.2
-Stable tag: 0.7
+Stable tag: 0.8
 
 GeOSM2 is a widget that adds a minimap to your sidebar(s) displaying the location where you posted the entry.
 
