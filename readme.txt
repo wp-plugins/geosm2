@@ -39,6 +39,10 @@ This section describes how to install the plugin and get it working.
 
 == Changelog ==
 
+= 0.8 =
+The javascripts getting the images was a bit of a problem because too many fetches caused some users to be locked out of the OSM servers.
+This version is converted to PHP with a tile cache updating every 7 days on request of the specific picture/map.
+
 = 0.7 =
 Minor upgrades and commenting to meet the requirements of Wordpress.org
 

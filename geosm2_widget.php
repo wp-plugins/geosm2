@@ -31,10 +31,47 @@ add_action( 'widgets_init', 'GeOSM2_load_widgets' );
 	// register the header
 add_action('wp_head', 'add_GeOSM2_head');
 
-
 function GeOSM2_load_widgets() {
 	register_widget( 'GeOSM2' );
 }
+
+	//image save function will save a new image if the old one is more than 24 hours old
+function LoadImageCURL($save_to,$url)
+{
+	$update = true;
+	
+	if( file_exists($save_to) ) 
+	{ 
+		if( filectime($save_to)+(7*24*60*60) > time() ) { $update = false; }
+	}  
+	
+	if ( $update ) 
+	{
+		$ch = curl_init($url);
+		$fp = fopen($save_to, "wb");
+		
+		// set URL and other appropriate options
+		$options = array(	CURLOPT_FILE => $fp, 
+							CURLOPT_HEADER => 0, 
+							CURLOPT_FOLLOWLOCATION => 0, //1 
+							CURLOPT_TIMEOUT => 60);
+		curl_setopt_array($ch, $options);
+		curl_exec($ch);
+		curl_close($ch);
+		fclose($fp);	
+	}
+}
+
+
+function add_GeOSM2_head() {
+		// This is a part of the OpenStreetMap script.
+	if ( is_single() ) {
+		?>
+		<link rel="stylesheet" href="<?php echo plugins_url('css/geosm2_map.css',__FILE__); ?>" type="text/css" />
+		<?php
+	}
+}
+
 
 
 class GeOSM2 extends WP_Widget {
@@ -42,7 +79,8 @@ class GeOSM2 extends WP_Widget {
 		parent::WP_Widget(false, $name = 'GeOSM2');
 	}
 
-	function form($instance) {
+	function form($instance) 
+	{
         ?>
             <p>
 	            <label for="<?php echo $this->get_field_id('title'); ?>"><?php _e('Title:'); ?>
@@ -58,6 +96,18 @@ class GeOSM2 extends WP_Widget {
 				</select></label>
 			</p>
 			<p>
+				<label for="<?php echo $this->get_field_id('width'); ?>">Width:
+				<input id="<?php echo $this->get_field_id('width'); ?>" name="<?php echo $this->get_field_name('width'); ?>"
+					type="text" value="<?php echo esc_attr($instance['width']); ?>" />
+				</label>
+			</p>
+			<p>
+				<label for="<?php echo $this->get_field_id('height'); ?>">Height:
+				<input id="<?php echo $this->get_field_id('height'); ?>" name="<?php echo $this->get_field_name('height'); ?>"
+					type="text" value="<?php echo esc_attr($instance['height']); ?>" />
+				</label>
+			</p>
+			<p>
 				<label for="<?php echo $this->get_field_id( 'needle' ); ?>">
 				<input class="checkbox" type="checkbox" <?php if ( 'on' == $instance['needle'] ) echo 'checked'; ?> id="<?php echo $this->get_field_id( 'needle' ); ?>" name="<?php echo $this->get_field_name( 'needle' ); ?>"/>
 				Show the needle?</label>
@@ -66,7 +116,8 @@ class GeOSM2 extends WP_Widget {
         <?php 
 	}
 
-	function update($new_instance, $old_instance) {
+	function update($new_instance, $old_instance) 
+	{
 		// processes widget options to be saved
 		$instance = $old_instance;
 
@@ -74,109 +125,132 @@ class GeOSM2 extends WP_Widget {
 		$instance['title'] = strip_tags( $new_instance['title'] );
 		$instance['maptype'] = strip_tags( $new_instance['maptype'] );
 		$instance['needle'] = strip_tags( $new_instance['needle'] );
-
+		$instance['width'] = strip_tags( $new_instance['width'] );
+		$instance['height'] = strip_tags( $new_instance['height'] );
 		return $instance;
 
 	}
 
-	function widget($args, $instance) {
+	function widget($args, $instance)
+	{
 
 			// This widget is only shown on a single page, so we wanna do as little as possible as long as we are not there
 
-		if ( is_single() ) {
+		if ( is_single() )
+		{
 			global $post;
+
+			$tilewidth = 256;
+			$tileheight = 256;
 			
+			$path=ABSPATH.'wp-content/plugins/'.str_replace(basename( __FILE__),"",plugin_basename(__FILE__));
+			
+			$tiles = $path.'cache/tiles/';
+			$maps = $path.'cache/maps/';
+					
 				//Check if the geotag is set to public or not
-			if ((bool)get_post_meta($post->ID, 'geo_public', true)) {
-	
-				extract( $args );
-				
-				$title = apply_filters('widget_title', $instance['title'] );
-				$maptype = $instance['maptype'];
-				$needle = $instance['needle'];
-				
+			if ((bool)get_post_meta($post->ID, 'geo_public', true)) 
+			{
 					//Defining a pattern to clean up spaces and digits in a coordinate
 				$pattern = '/^(\-)?(\d{1,3})\.(\d{1,15})/';
-				
 					// Get Lon/Lat
 				preg_match($pattern, get_post_meta($post->ID, 'geo_latitude', true), $matches);
-				$latitude = $matches[0];
+				$lat = $matches[0];
 				preg_match($pattern, get_post_meta($post->ID, 'geo_longitude', true), $matches);
-				$longitude = $matches[0];
+				$lon = $matches[0];
+
+				if (!empty($lon) && !empty($lat)) 
+				{
+		
+					extract( $args );
+					
+					$title = apply_filters('widget_title', $instance['title'] );
+					$maptype = $instance['maptype'];
+					$needle = $instance['needle'];
+					$width = $instance['width'];
+					$height = $instance['height'];
+					
+									
+						//Getting the zoom level, set to a standard if not defined
+					$zoom = get_post_meta($post->ID, 'geo_zoom', true);
+					if (empty($zoom)) { $zoom = 14; }	
+		
+					// get the tilenumber
+					$xtile = floor((($lon + 180) / 360) * pow(2, $zoom));
+					$ytile = floor((1 - log(tan(deg2rad($lat)) + 1 / cos(deg2rad($lat))) / pi()) /2 * pow(2, $zoom));
+					
+					// get the coordinate
+					$xpin = floor($tilewidth*(((($lon + 180) / 360) * pow(2, $zoom)) - $xtile));
+					$ypin = floor($tileheight*(((1 - log(tan(deg2rad($lat)) + 1 / cos(deg2rad($lat))) / pi()) /2 * pow(2, $zoom)) - $ytile));
+					
+					// upper left tile
+					$ul_tile_x = $xtile - ceil((($width/2) - $xpin) / $tilewidth);
+					$ul_tile_y = $ytile - ceil((($height/2) - $ypin) / $tileheight);
 				
-					//Getting the zoom level, set to a standard if not defined
-				$zoom = get_post_meta($post->ID, 'geo_zoom', true);
-				if (empty($zoom)) { $zoom = 14; }	
+					// lower right tile
+					$lr_tile_x = $xtile + ceil((($width/2) - ($tilewidth - $xpin)) / $tilewidth);
+					$lr_tile_y = $ytile + ceil((($height/2) - ($tileheight - $ypin)) / $tileheight);
 
-				echo $before_widget;
-				echo $before_title.$title.$after_title;
+					$savefile = $zoom.'_'.$lat.'_'.$lon.'_'.$width.'x'.$height.'.png';
 
-				echo '<div class="geosm2"><div style="width:278px; height:200px" id="map"><script type="text/javascript">ShowMap('.$longitude.','.$latitude.','.$zoom.',\''.$maptype.'\',\''.$needle.'\');</script></div>';
-				echo '<p>&copy;<a href="http://www.openstreetmap.org/" target="_new">OpenStreetMap</a> &amp; ';
-				echo '<a href="http://creativecommons.org/licenses/by-sa/2.0/" target="_new">contributors, CC-BY-SA</a></p></div>';
-				echo $after_widget;
+
+					$update = true;
+					
+					if( file_exists($maps.$savefile) ) 
+					{ 
+						if( filectime($maps.$savefile)+(7*24*60*60) > time() ) { $update = false; }
+					}  
+					
+					if ( $update ) 
+					{
+	
+					
+					
+						// Generate dumb pictureframe
+						$tempimg = imagecreatetruecolor(($lr_tile_x-$ul_tile_x+1)*$tilewidth, ($lr_tile_y-$ul_tile_y+1)*$tileheight);
+					
+						for ($countery=$ul_tile_y; $countery<=$lr_tile_y;$countery+=1)
+						{
+							for ($counterx=$ul_tile_x; $counterx<=$lr_tile_x;$counterx+=1)
+							{
+								LoadImageCURL($tiles.$zoom.'-'.$counterx.'-'.$countery.'.png','http://b.tile.openstreetmap.org/'.$zoom.'/'.$counterx.'/'.$countery.'.png');
+								
+								$temptile = imagecreatefrompng($tiles.$zoom.'-'.$counterx.'-'.$countery.'.png');
+								imagecopy($tempimg,$temptile,($counterx-$ul_tile_x)*$tilewidth,($countery-$ul_tile_y)*$tileheight,0,0,$tilewidth,$tileheight);
+								imagedestroy($temptile);
+								//echo 'http://tile.openstreetmap.org/'.$zoom.'/'.$counterx.'/'.$countery.'.png<br/>';
+							}		
+						}
+						
+						// chop temporary image
+						$marker = imagecreatefrompng($path.'needle.png');
+						
+						$realimg = imagecreatetruecolor($width,$height);
+						imagecopy($realimg,$tempimg,0,0,(($xtile-$ul_tile_x)*$tilewidth+$xpin-floor($width/2)),
+							(($ytile-$ul_tile_y)*$tileheight+$ypin-floor($height/2)),$width,$height);
+						imagecopy($realimg,$marker,floor(($width/2)-(imagesx($marker)/2)),floor($height/2-imagesy($marker)),0,0,imagesx($marker),imagesy($marker));
+					
+						imagepng($realimg,$maps.$savefile);
+						imagedestroy($tempimg);
+						imagedestroy($realimg);
+
+					}
+
+					echo $before_widget;
+					echo $before_title.$title.$after_title;
+					echo '<div class="geosm2">';
+					echo '<img src="'.plugins_url('cache/maps/'.$savefile,__FILE__).'"/><br>';
+					echo '<p>&copy;<a href="http://www.openstreetmap.org/" target="_new">OpenStreetMap</a> &amp; ';
+					echo '<a href="http://creativecommons.org/licenses/by-sa/2.0/" target="_new">contributors, CC-BY-SA</a></p></div>';
+					echo $after_widget;
+
+				}
 			}
 		}
 	}
 }
 
-function add_GeOSM2_head() {
-		// This is a part of the OpenStreetMap script.
-	if ( is_single() ) {
 
-		?>
-		<script src="<?php echo plugins_url('js/OpenLayers.js',__FILE__); ?>"></script>
-		<script src="<?php echo plugins_url('js/OpenStreetMap.js',__FILE__); ?>"></script>
-		<script type="text/javascript">
-	 		function ShowMap(lon,lat,zoom,type,needle) {
-				var map;
-				map = new OpenLayers.Map ("map", {
-					controls:[
-					//new OpenLayers.Control.Attribution()
-					new OpenLayers.Control.ArgParser()
-					],
-					maxExtent: new OpenLayers.Bounds(-20037508.34,-20037508.34,20037508.34,20037508.34),
-								maxResolution: 156543.0399,
-					numZoomLevels: 19,
-					units: "m",
-					projection: new OpenLayers.Projection("EPSG:900913"),
-					displayProjection: new OpenLayers.Projection("EPSG:4326")
-				} );
-				switch (type)
-				{
-				case 'osmarender':
-					layerTilesAtHome = new OpenLayers.Layer.OSM.Osmarender("Osmarender");
-					map.addLayer(layerTilesAtHome);
-					break;
-				case 'mapnik':
-					layerMapnik = new OpenLayers.Layer.OSM.Mapnik("Mapnik");
-					map.addLayer(layerMapnik);
-					break;
-				case 'cyclemap':
-					layerCycleMap = new OpenLayers.Layer.OSM.CycleMap("CycleMap");
-					map.addLayer(layerCycleMap);
-					break;
-				default:
-				}
-				if (needle=='on') {
-					layerMarkers = new OpenLayers.Layer.Markers("Markers");
-					map.addLayer(layerMarkers);
-				}
-				var lonLat = new OpenLayers.LonLat(lon, lat).transform(new OpenLayers.Projection("EPSG:4326"), map.getProjectionObject());
-				map.setCenter (lonLat, zoom);
-		
-				var size = new OpenLayers.Size(18,25);
-				var offset = new OpenLayers.Pixel(0, -size.h);
-				var icon = new OpenLayers.Icon("<?php echo plugins_url('needle.png',__FILE__); ?>",size,offset);
-				layerMarkers.addMarker(new OpenLayers.Marker(lonLat,icon));
-	 		}
-		</script>
-		
-		<link rel="stylesheet" href="<?php echo plugins_url('css/geosm2_map.css',__FILE__); ?>" type="text/css" />
-		
-		<?php
-	}
-}
 
 
 ?>
