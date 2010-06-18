@@ -3,7 +3,7 @@
 Plugin name: 	GeOSM2
 Plugin URI:		http://chrsoft.net/?page_id=6
 Description:	Uses the already set parameters geo_latitude and geo_longitude to put a marker on a embedded Open Street Map if public is set to 1. A perfect match with mobile blogging devices like iPhone
-Version:		0.8.2
+Version:		0.8.3
 Author:			Christian Jensen
 Author URI:		http://chrsoft.net/
 License:		GPL2
@@ -62,6 +62,77 @@ function LoadImageCURL($save_to,$url)
 	}
 }
 
+function GenerateImage($zoom, $width, $height, $savefile, $lat, $lon, $needle)
+{
+	$tilewidth = 256;
+	$tileheight = 256;
+	
+	$path=ABSPATH.'wp-content/plugins/'.str_replace(basename( __FILE__),"",plugin_basename(__FILE__));
+	
+	$tiles = $path.'cache/tiles/';
+	$maps = $path.'cache/maps/';
+
+	// get the tilenumber
+	$xtile = floor((($lon + 180) / 360) * pow(2, $zoom));
+	$ytile = floor((1 - log(tan(deg2rad($lat)) + 1 / cos(deg2rad($lat))) / pi()) /2 * pow(2, $zoom));
+	
+	// get the coordinate
+	$xpin = floor($tilewidth*(((($lon + 180) / 360) * pow(2, $zoom)) - $xtile));
+	$ypin = floor($tileheight*(((1 - log(tan(deg2rad($lat)) + 1 / cos(deg2rad($lat))) / pi()) /2 * pow(2, $zoom)) - $ytile));
+	
+	// upper left tile
+	$ul_tile_x = $xtile - ceil((($width/2) - $xpin) / $tilewidth);
+	$ul_tile_y = $ytile - ceil((($height/2) - $ypin) / $tileheight);
+	
+	// lower right tile
+	$lr_tile_x = $xtile + ceil((($width/2) - ($tilewidth - $xpin)) / $tilewidth);
+	$lr_tile_y = $ytile + ceil((($height/2) - ($tileheight - $ypin)) / $tileheight);
+		
+	$update = true;
+	
+	if( file_exists($maps.$savefile) ) 
+	{ 
+		if( filectime($maps.$savefile)+(7*24*60*60) > time() ) { $update = false; }
+	}  
+	
+	if ( $update ) 
+	{
+	
+	
+	
+		// Generate dumb pictureframe
+		$tempimg = imagecreatetruecolor(($lr_tile_x-$ul_tile_x+1)*$tilewidth, ($lr_tile_y-$ul_tile_y+1)*$tileheight);
+	
+		for ($countery=$ul_tile_y; $countery<=$lr_tile_y;$countery+=1)
+		{
+			for ($counterx=$ul_tile_x; $counterx<=$lr_tile_x;$counterx+=1)
+			{
+				LoadImageCURL($tiles.$zoom.'-'.$counterx.'-'.$countery.'.png','http://b.tile.openstreetmap.org/'.$zoom.'/'.$counterx.'/'.$countery.'.png');
+				
+				$temptile = imagecreatefrompng($tiles.$zoom.'-'.$counterx.'-'.$countery.'.png');
+				imagecopy($tempimg,$temptile,($counterx-$ul_tile_x)*$tilewidth,($countery-$ul_tile_y)*$tileheight,0,0,$tilewidth,$tileheight);
+				imagedestroy($temptile);
+				//echo 'http://tile.openstreetmap.org/'.$zoom.'/'.$counterx.'/'.$countery.'.png<br/>';
+			}		
+		}
+		
+		// chop temporary image
+		
+		$realimg = imagecreatetruecolor($width,$height);
+		imagecopy($realimg,$tempimg,0,0,(($xtile-$ul_tile_x)*$tilewidth+$xpin-floor($width/2)),
+			(($ytile-$ul_tile_y)*$tileheight+$ypin-floor($height/2)),$width,$height);
+
+		if ($needle == 'on') {
+			$marker = imagecreatefrompng($path.'needle.png');
+			imagecopy($realimg,$marker,floor(($width/2)-(imagesx($marker)/2)),floor($height/2-imagesy($marker)),0,0,imagesx($marker),imagesy($marker));
+		}	
+		imagepng($realimg,$maps.$savefile);
+		imagedestroy($tempimg);
+		imagedestroy($realimg);
+	
+	}	
+}
+
 
 function add_GeOSM2_head() {
 		// This is a part of the OpenStreetMap script.
@@ -81,20 +152,21 @@ class GeOSM2 extends WP_Widget {
 
 	function form($instance) 
 	{
-        load_plugin_textdomain('geosm2',false, dirname(plugin_basename( __FILE__)).'/language');?>
+        load_plugin_textdomain('geosm2',false, dirname(plugin_basename( __FILE__)).'/language');
+        echo dirname(plugin_basename( __FILE__));?>
             <p>
 	            <label for="<?php echo $this->get_field_id('title'); ?>"><?php _e('Title:','geosm2'); ?>
 	            <input class="widefat" id="<?php echo $this->get_field_id('title'); ?>" name="<?php echo $this->get_field_name('title'); ?>"
 	            		type="text" value="<?php echo esc_attr($instance['title']); ?>" /></label>
             </p>
-			<p>
+			<!--<p>
 				<label for="<?php echo $this->get_field_id( 'maptype' ); ?>"<?php _e('Map Type:','geosm2'); ?>
 				<select class="widefat" id="<?php echo $this->get_field_id( 'maptype' ); ?>" name="<?php echo $this->get_field_name( 'maptype' ); ?>">
 					<option <?php if ( 'cyclemap' == $instance['maptype'] ) echo 'selected="selected"'; ?>>cyclemap</option>
 					<option <?php if ( 'mapnik' == $instance['maptype'] ) echo 'selected="selected"'; ?>>mapnik</option>
 					<option <?php if ( 'osmarender' == $instance['maptype'] ) echo 'selected="selected"'; ?>>osmarender</option>
 				</select></label>
-			</p>
+			</p>-->
 			<p>
 				<label for="<?php echo $this->get_field_id('width'); ?>"><?php _e('Width','geosm2'); ?>:
 				<input id="<?php echo $this->get_field_id('width'); ?>" name="<?php echo $this->get_field_name('width'); ?>"
@@ -112,6 +184,23 @@ class GeOSM2 extends WP_Widget {
 				<input class="checkbox" type="checkbox" <?php if ( 'on' == $instance['needle'] ) echo 'checked'; ?> id="<?php echo $this->get_field_id( 'needle' ); ?>" name="<?php echo $this->get_field_name( 'needle' ); ?>"/>
 				<?php _e('Show the needle?','geosm2'); ?></label>
 			</p>
+			<p>
+				<label for="<?php echo $this->get_field_id( 'clickable' ); ?>">
+				<input class="checkbox" type="checkbox" <?php if ( 'on' == $instance['clickable'] ) echo 'checked'; ?> id="<?php echo $this->get_field_id( 'clickable' ); ?>" name="<?php echo $this->get_field_name( 'clickable' ); ?>"/>
+				<?php _e('Clickable map','geosm2'); ?></label>
+			</p>
+			<p>
+				<label for="<?php echo $this->get_field_id('cwidth'); ?>"><?php _e('Clickable Width','geosm2'); ?>:
+				<input id="<?php echo $this->get_field_id('cwidth'); ?>" name="<?php echo $this->get_field_name('cwidth'); ?>"
+					type="text" value="<?php echo esc_attr($instance['cwidth']); ?>" />
+				</label>
+			</p>
+			<p>
+				<label for="<?php echo $this->get_field_id('cheight'); ?>"><?php _e('Clickable Height','geosm2'); ?>:
+				<input id="<?php echo $this->get_field_id('cheight'); ?>" name="<?php echo $this->get_field_name('cheight'); ?>"
+					type="text" value="<?php echo esc_attr($instance['cheight']); ?>" />
+				</label>
+			</p>
 
         <?php 
 	}
@@ -123,10 +212,14 @@ class GeOSM2 extends WP_Widget {
 
 		/* Strip tags (if needed) and update the widget settings. */
 		$instance['title'] = strip_tags( $new_instance['title'] );
-		$instance['maptype'] = strip_tags( $new_instance['maptype'] );
+		//$instance['maptype'] = strip_tags( $new_instance['maptype'] );
 		$instance['needle'] = strip_tags( $new_instance['needle'] );
 		$instance['width'] = strip_tags( $new_instance['width'] );
 		$instance['height'] = strip_tags( $new_instance['height'] );
+		$instance['clickable'] = strip_tags( $new_instance['clickable'] );
+		$instance['cwidth'] = strip_tags( $new_instance['cwidth'] );
+		$instance['cheight'] = strip_tags( $new_instance['cheight'] );
+		
 		return $instance;
 
 	}
@@ -139,14 +232,6 @@ class GeOSM2 extends WP_Widget {
 		if ( is_single() )
 		{
 			global $post;
-
-			$tilewidth = 256;
-			$tileheight = 256;
-			
-			$path=ABSPATH.'wp-content/plugins/'.str_replace(basename( __FILE__),"",plugin_basename(__FILE__));
-			
-			$tiles = $path.'cache/tiles/';
-			$maps = $path.'cache/maps/';
 					
 				//Check if the geotag is set to public or not
 			if ((bool)get_post_meta($post->ID, 'geo_public', true)) 
@@ -169,77 +254,32 @@ class GeOSM2 extends WP_Widget {
 					$needle = $instance['needle'];
 					$width = $instance['width'];
 					$height = $instance['height'];
-					
-									
+					$clickable = $instance['clickable'];
+
 						//Getting the zoom level, set to a standard if not defined
 					$zoom = get_post_meta($post->ID, 'geo_zoom', true);
 					if (empty($zoom)) { $zoom = 14; }	
 		
-					// get the tilenumber
-					$xtile = floor((($lon + 180) / 360) * pow(2, $zoom));
-					$ytile = floor((1 - log(tan(deg2rad($lat)) + 1 / cos(deg2rad($lat))) / pi()) /2 * pow(2, $zoom));
+					$savefile = $zoom.'_'.$lat.'_'.$lon.'_'.$width.'x'.$height.'_'.$needle.'.png';
 					
-					// get the coordinate
-					$xpin = floor($tilewidth*(((($lon + 180) / 360) * pow(2, $zoom)) - $xtile));
-					$ypin = floor($tileheight*(((1 - log(tan(deg2rad($lat)) + 1 / cos(deg2rad($lat))) / pi()) /2 * pow(2, $zoom)) - $ytile));
-					
-					// upper left tile
-					$ul_tile_x = $xtile - ceil((($width/2) - $xpin) / $tilewidth);
-					$ul_tile_y = $ytile - ceil((($height/2) - $ypin) / $tileheight);
-				
-					// lower right tile
-					$lr_tile_x = $xtile + ceil((($width/2) - ($tilewidth - $xpin)) / $tilewidth);
-					$lr_tile_y = $ytile + ceil((($height/2) - ($tileheight - $ypin)) / $tileheight);
-
-					$savefile = $zoom.'_'.$lat.'_'.$lon.'_'.$width.'x'.$height.'.png';
-
-
-					$update = true;
-					
-					if( file_exists($maps.$savefile) ) 
-					{ 
-						if( filectime($maps.$savefile)+(7*24*60*60) > time() ) { $update = false; }
-					}  
-					
-					if ( $update ) 
+					GenerateImage($zoom, $width, $height, $savefile, $lat, $lon, $needle);
+					if ($clickable == 'on' )
 					{
-	
-					
-					
-						// Generate dumb pictureframe
-						$tempimg = imagecreatetruecolor(($lr_tile_x-$ul_tile_x+1)*$tilewidth, ($lr_tile_y-$ul_tile_y+1)*$tileheight);
-					
-						for ($countery=$ul_tile_y; $countery<=$lr_tile_y;$countery+=1)
-						{
-							for ($counterx=$ul_tile_x; $counterx<=$lr_tile_x;$counterx+=1)
-							{
-								LoadImageCURL($tiles.$zoom.'-'.$counterx.'-'.$countery.'.png','http://b.tile.openstreetmap.org/'.$zoom.'/'.$counterx.'/'.$countery.'.png');
-								
-								$temptile = imagecreatefrompng($tiles.$zoom.'-'.$counterx.'-'.$countery.'.png');
-								imagecopy($tempimg,$temptile,($counterx-$ul_tile_x)*$tilewidth,($countery-$ul_tile_y)*$tileheight,0,0,$tilewidth,$tileheight);
-								imagedestroy($temptile);
-								//echo 'http://tile.openstreetmap.org/'.$zoom.'/'.$counterx.'/'.$countery.'.png<br/>';
-							}		
-						}
+						$cwidth = $instance['cwidth'];
+						$cheight = $instance['cheight'];
 						
-						// chop temporary image
-						$marker = imagecreatefrompng($path.'needle.png');
+						$clicked_savefile = $zoom.'_'.$lat.'_'.$lon.'_'.$cwidth.'x'.$cheight.'_'.$needle.'.png';
 						
-						$realimg = imagecreatetruecolor($width,$height);
-						imagecopy($realimg,$tempimg,0,0,(($xtile-$ul_tile_x)*$tilewidth+$xpin-floor($width/2)),
-							(($ytile-$ul_tile_y)*$tileheight+$ypin-floor($height/2)),$width,$height);
-						imagecopy($realimg,$marker,floor(($width/2)-(imagesx($marker)/2)),floor($height/2-imagesy($marker)),0,0,imagesx($marker),imagesy($marker));
-					
-						imagepng($realimg,$maps.$savefile);
-						imagedestroy($tempimg);
-						imagedestroy($realimg);
-
+						GenerateImage($zoom, $cwidth, $cheight, $clicked_savefile, $lat, $lon, $needle);
+						$before_url = '<a href="'.plugins_url('cache/maps/'.$clicked_savefile,__FILE__).'">';
+						$after_url = '</a>';
 					}
-
+					
+					
 					echo $before_widget;
 					echo $before_title.$title.$after_title;
 					echo '<div class="geosm2">';
-					echo '<img src="'.plugins_url('cache/maps/'.$savefile,__FILE__).'"/><br>';
+					echo $before_url.'<img src="'.plugins_url('cache/maps/'.$savefile,__FILE__).'"/>'.$after_url.'<br>';
 					echo '<p>&copy;<a href="http://www.openstreetmap.org/" target="_new">OpenStreetMap</a> &amp; ';
 					echo '<a href="http://creativecommons.org/licenses/by-sa/2.0/" target="_new">contributors, CC-BY-SA</a></p></div>';
 					echo $after_widget;

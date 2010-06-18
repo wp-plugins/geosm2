@@ -3,8 +3,8 @@ Contributors: Christian Jensen
 Donate link: http://chrsoft.net/?page_id=18
 Tags: Geotag, Geographical, Position, OpenStreetMap, Map, Geosm, Geosm2
 Requires at least: 2.8
-Tested up to: 2.9.2
-Stable tag: 0.8.2
+Tested up to: 3.0
+Stable tag: 0.8.3
 
 GeOSM2 is a widget that adds a minimap to your sidebar(s) displaying the location where you posted the entry.
 
@@ -30,6 +30,12 @@ This section describes how to install the plugin and get it working.
 4. Move the Widget into a desired position in your menu system
 
 == Frequently Asked Questions ==
+Q: Why aren't my map showing up?
+A: This have many causes. The main one being that your host is grabing too many tiles from the OpenStreetMap server. Consider establishing your own tile server.
+
+Q: I still see needles even if I removed the "needle" tag from the widget setup
+A: This is a error prior to version 0.8.3. Upgrade to atleast 0.8.3 to make it work
+
 
 == Screenshots ==
 
@@ -38,6 +44,14 @@ This section describes how to install the plugin and get it working.
 3. The widget setup panel
 
 == Changelog ==
+
+= 0.8.3 =
+- Fixed up a error where the different maptypes still where showing. This might be implimented on a later stadium, but right now I see no use of it and have no 
+requests for it.
+- Added a clickable map function so that one can get a bigger view of the actual map. Works very well together with Fancybox 
+(http://wordpress.org/extend/plugins/fancy-box/)
+- Implimented the posibility of removing the needle from the map.
+
 
 = 0.8.2 =
 Added support for localization and updated some links
