@@ -41,9 +41,18 @@ A: This is a error prior to version 0.8.3. Upgrade to atleast 0.8.3 to make it w
 
 1. The minimap shown in single view on a post
 2. The parameters in your post panel
-3. The widget setup panel
+3. The widget setup panel, also notice the second title when last known position is available
+4. The minimap with the secondary header when last known position is in use
+5. The new setup panel.
 
 == Changelog ==
+
+= 0.9 =
+- New needle (thanks Geoff)
+- Documented the geo_zoom function
+- Last known position will provide a minimal even if you didn't geotag the post (it will use the last known position instead)
+- A new settings panel that will help you customize non-widget related information
+- A shortcode called geosm2map that will show all your post locations on one big map.
 
 = 0.8.3 =
 - Fixed up a error where the different maptypes still where showing. This might be implimented on a later stadium, but right now I see no use of it and have no 

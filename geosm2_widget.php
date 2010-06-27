@@ -62,6 +62,8 @@ class GeOSM2_widget extends WP_Widget {
 
 			// This widget is only shown on a single page, so we wanna do as little as possible as long as we are not there
 
+		//get_option('geosm2_option_maptype') = 'mapnik';
+
 		if ( is_single() )
 		{
 			global $post;
@@ -117,8 +119,8 @@ class GeOSM2_widget extends WP_Widget {
 					
 						//Getting the zoom level, set to a standard if not defined
 
-					$savefile = $zoom.'_'.$lat.'_'.$lon.'_'.$width.'x'.$height.'_'.$needle.'.png';
-					$clicked_savefile = $zoom.'_'.$lat.'_'.$lon.'_'.$cwidth.'x'.$cheight.'_'.$needle.'.png';
+					$savefile = get_option('geosm2_option_maptype').'_'.$zoom.'_'.$lat.'_'.$lon.'_'.$width.'x'.$height.'_'.$needle.'.png';
+					$clicked_savefile = get_option('geosm2_option_maptype').'_'.$zoom.'_'.$lat.'_'.$lon.'_'.$cwidth.'x'.$cheight.'_'.$needle.'.png';
 					
 					GenerateImage($zoom, $width, $height, $savefile, $lat, $lon, $needle);
 					if ( ($clickable == 'on' ) && (!empty($cwidth)) && (!empty($cheight)) )
